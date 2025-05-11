@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Human Lifting Simulation</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #container {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+    }
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      z-index: 100;
+    }
+    button {
+      padding: 10px 15px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+    #weightControls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      z-index: 100;
+    }
+    #postureControls {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      z-index: 100;
+      width: 250px;
+    }
+    #analysisPanel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      gap: 20px; /* المسافة بين العنصرين */
+      z-index: 100;
+    }
+    .bone-stress {
+      height: 10px;
+      background: #333;
+      border-radius: 5px;
+      margin: 5px 0;
+    }
+    .stress-level {
+      height: 100%;
+      background: linear-gradient(to right, green, yellow, red);
+      border-radius: 5px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    #testPanel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 200;
+      display: none;
+      width: 500px;
+      max-width: 90%;
+    }
+    .highlight {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      box-shadow: 0 0 15px red;
+      opacity: 0;
+      transition: opacity 0.3s, width 0.3s, height 0.3s;
+    }
+    #dangerAlert {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,0,0,0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 300;
+      font-size: 24px;
+      font-weight: bold;
+      display: none;
+      text-align: center;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.05); }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+    .slider-container {
+      margin: 10px 0;
+    }
+    .slider-container label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    .test-option {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      background: #333;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .test-option:hover {
+      background: #444;
+    }
+    .test-option.correct {
+      background: #4CAF50;
+    }
+    .test-option.incorrect {
+      background: #f44336;
+    }
+    #testProgress {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    #feedbackPanel {
+      position: absolute;
+      bottom: 80px;
+      left: 20px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 100;
+      max-width: 300px;
+    }
+    #injuryIndicator {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 20px;
+      height: 20px;
+      background-color: #4CAF50;
+      border-radius: 50%;
+      z-index: 100;
+      display: none;
+    }
+    #fatigueMeter {
+      position: absolute;
+      bottom: 120px;
+      left: 20px;
+      width: 200px;
+      height: 10px;
+      background: #333;
+      border-radius: 5px;
+      z-index: 100;
+    }
+    #fatigueLevel {
+      height: 100%;
+      background: linear-gradient(to right, green, yellow, red);
+      border-radius: 5px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    #fatigueLabel {
+      position: absolute;
+      bottom: 135px;
+      left: 20px;
+      color: white;
+      font-size: 12px;
+      z-index: 100;
+    }
+    #completionBadge {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(76, 175, 80, 0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 300;
+      font-size: 24px;
+      font-weight: bold;
+      display: none;
+      text-align: center;
+    }
+    #xrayToggle {
+      position: absolute;
+      top: 20px;
+      right: 250px;
+      z-index: 100;
+    }
+    .muscle-highlight {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      box-shadow: 0 0 15px rgba(255, 100, 100, 0.8);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+  </style>
+</head>
+<body>
+<div id="container">
+  <div id="weightControls">
+    <h3>Weight Control</h3>
+    <div class="slider-container">
+      <label for="weightSlider">Weight: <span id="weightValue">15</span> kg</label>
+      <input type="range" id="weightSlider" min="5" max="50" value="15" step="1">
+    </div>
+    <div class="slider-container">
+      <label for="liftHeightSlider">Lift Height: <span id="liftHeightValue">1.0</span> m</label>
+      <input type="range" id="liftHeightSlider" min="0.5" max="1.5" value="1.0" step="0.1">
+    </div>
+  </div>
+
+  <div id="postureControls">
+    <h3>Posture Controls</h3>
+    <div class="slider-container">
+      <label for="backAngleSlider">Back Angle: <span id="backAngleValue">0</span>°</label>
+      <input type="range" id="backAngleSlider" min="-45" max="60" value="0" step="1">
+    </div>
+    <div class="slider-container">
+      <label for="kneeBendSlider">Knee Bend: <span id="kneeBendValue">0</span>°</label>
+      <input type="range" id="kneeBendSlider" min="0" max="90" value="0" step="1">
+    </div>
+    <div class="slider-container">
+      <label for="gripWidthSlider">Grip Width: <span id="gripWidthValue">0.5</span> m</label>
+      <input type="range" id="gripWidthSlider" min="0.3" max="0.8" value="0.5" step="0.05">
+    </div>
+    <button id="showTest">Take Safety Test</button>
+    <button id="autoLiftBtn">Auto Lift (Proper Form)</button>
+  </div>
+
+  <div id="analysisPanel">
+    <h3>Body Stress Analysis</h3>
+    <div class="bone-analysis">
+      <p>Lower Back <span class="stress-value">0%</span></p>
+      <div class="bone-stress"><div class="stress-level" id="backStress"></div></div>
+    </div>
+    <div class="bone-analysis">
+      <p>Knees <span class="stress-value">0%</span></p>
+      <div class="bone-stress"><div class="stress-level" id="kneeStress"></div></div>
+    </div>
+    <div class="bone-analysis">
+      <p>Shoulders <span class="stress-value">0%</span></p>
+      <div class="bone-stress"><div class="stress-level" id="shoulderStress"></div></div>
+    </div>
+    <div class="bone-analysis">
+      <p>Spine <span class="stress-value">0%</span></p>
+      <div class="bone-stress"><div class="stress-level" id="spineStress"></div></div>
+    </div>
+    <div class="bone-analysis">
+      <p>Hands/Wrists <span class="stress-value">0%</span></p>
+      <div class="bone-stress"><div class="stress-level" id="handStress"></div></div>
+    </div>
+  </div>
+
+  <div id="fatigueLabel">Fatigue Level</div>
+  <div id="fatigueMeter"><div id="fatigueLevel"></div></div>
+
+  <div id="feedbackPanel">
+    <p id="feedbackText">Adjust posture and weight to see effects on the body</p>
+  </div>
+
+  <div id="controls">
+    <button id="startLift">Start Lifting</button>
+    <button id="resetSim">Reset Simulation</button>
+    <button id="toggleView">Toggle View</button>
+    <button id="toggleXray">Toggle X-Ray</button>
+  </div>
+
+  <div id="testPanel">
+    <h2>Lifting Safety Knowledge Test</h2>
+    <div id="testProgress">Question 1 of 5</div>
+    <p id="testQuestion">What is the proper technique for lifting heavy objects?</p>
+    <div id="testOptions"></div>
+    <p id="testResult"></p>
+    <button id="nextQuestion" style="display:none;">Next Question</button>
+  </div>
+
+  <div id="dangerAlert">
+    DANGER!<br>Excessive weight or poor posture detected!
+  </div>
+
+  <div id="injuryIndicator"></div>
+
+  <div id="completionBadge">
+    Test Completed!<br>
+    <span id="testScore">Score: 100%</span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+<script>
+  // Scene setup
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf0f0f0);
+
+  // Camera
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 1.5, 3);
+
+  // Secondary camera for side view
+  const sideCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  sideCamera.position.set(3, 1.5, 0);
+  sideCamera.lookAt(0, 1, 0);
+
+  let activeCamera = camera;
+
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  document.getElementById('container').prepend(renderer.domElement);
+
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+  scene.add(ambientLight);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  directionalLight.position.set(3, 4, 2);
+  directionalLight.castShadow = true;
+  directionalLight.shadow.mapSize.width = 1024;
+  directionalLight.shadow.mapSize.height = 1024;
+  scene.add(directionalLight);
+
+  // Ground with grid
+  const groundGeometry = new THREE.PlaneGeometry(20, 20);
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x999999, side: THREE.DoubleSide });
+  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Grid helper
+  const gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x333333);
+  scene.add(gridHelper);
+
+  // Variables
+  let skeleton, box, currentWeight = 15;
+  let backAngle = 0, kneeBend = 0, gripWidth = 0.5, liftHeight = 1.0;
+  let isLifting = false;
+  let liftPhase = 0; // 0=down, 1=up
+  let liftProgress = 0; // 0-1 for smooth lifting
+  const boneHighlights = {};
+  const muscleHighlights = {};
+  let dangerAlertTimeout = null;
+  let fatigueLevel = 0;
+  let injuryOccurred = false;
+  let xrayMode = false;
+  let autoLiftMode = false;
+
+  // Test questions
+  const testQuestions = [
+    {
+      question: "What is the proper technique for lifting heavy objects?",
+      options: [
+        "Bend at the waist only",
+        "Bend your knees and keep back straight",
+        "Lift with one hand",
+        "Twist while lifting"
+      ],
+      correct: 1,
+      feedback: "Correct! Bending your knees and keeping your back straight distributes the weight properly and reduces strain on your spine."
+    },
+    {
+      question: "Which body parts are most at risk when lifting incorrectly?",
+      options: [
+        "Fingers and toes",
+        "Lower back and spine",
+        "Elbows and shoulders",
+        "All parts equally"
+      ],
+      correct: 1,
+      feedback: "Correct! The lower back and spine bear most of the stress during improper lifting, which can lead to serious injuries."
+    },
+    {
+      question: "What should you do when lifting very heavy objects?",
+      options: [
+        "Hold it away from your body",
+        "Get help from another person",
+        "Lift quickly to get it over with",
+        "Arch your back to use momentum"
+      ],
+      correct: 1,
+      feedback: "Correct! For very heavy objects, it's safest to get help rather than risk injury by lifting alone."
+    },
+    {
+      question: "How should you position your feet when lifting?",
+      options: [
+        "Close together",
+        "One foot forward, one back",
+        "Shoulder-width apart",
+        "Doesn't matter"
+      ],
+      correct: 2,
+      feedback: "Correct! Shoulder-width apart provides the most stable base for lifting."
+    },
+    {
+      question: "What is the maximum recommended weight for one person to lift?",
+      options: [
+        "10kg (22lbs)",
+        "20kg (44lbs)",
+        "50kg (110lbs)",
+        "There is no limit if you're strong"
+      ],
+      correct: 1,
+      feedback: "Correct! While it varies by individual, most safety guidelines recommend not lifting more than 20kg (44lbs) without assistance."
+    },
+    {
+      question: "What should you do if an object is too heavy to lift safely?",
+      options: [
+        "Try anyway and take a break if needed",
+        "Use mechanical lifting equipment",
+        "Pull it quickly to use momentum",
+        "Lift with your back to use stronger muscles"
+      ],
+      correct: 1,
+      feedback: "Correct! Mechanical lifting equipment like dollies or forklifts should be used for objects that are too heavy to lift manually."
+    },
+    {
+      question: "How close should you hold the object to your body when lifting?",
+      options: [
+        "As far away as possible for balance",
+        "About 30cm (12 inches) from your body",
+        "As close to your body as possible",
+        "It doesn't matter as long as you can hold it"
+      ],
+      correct: 2,
+      feedback: "Correct! Holding the load close to your body reduces the strain on your back by decreasing the lever arm."
+    },
+    {
+      question: "What should you avoid doing while lifting?",
+      options: [
+        "Twisting your torso",
+        "Breathing regularly",
+        "Looking straight ahead",
+        "All of the above"
+      ],
+      correct: 0,
+      feedback: "Correct! Twisting while lifting is particularly dangerous as it puts uneven stress on your spine."
+    }
+  ];
+
+  let currentTestQuestion = 0;
+  let testScore = 0;
+
+  // Create more realistic human skeleton with joints and muscles
+  function createSkeleton() {
+    const group = new THREE.Group();
+    group.position.y = 1.0;
+
+    // Materials
+    const boneMaterial = new THREE.MeshPhongMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.8,
+      shininess: 30
+    });
+
+    const jointMaterial = new THREE.MeshPhongMaterial({
+      color: 0xaaaaaa,
+      transparent: true,
+      opacity: 0.9
+    });
+
+    const muscleMaterial = new THREE.MeshPhongMaterial({
+      color: 0xcc6666,
+      transparent: true,
+      opacity: 0.7
+    });
+
+    // Bones with more realistic proportions
+    const bones = {
+      head: { position: [0, 0.25, 0], size: [0.2, 0.25, 0.2] },
+      neck: { position: [0, 0, 0], size: [0.12, 0.15, 0.12] },
+      upperSpine: { position: [0, -0.2, 0], size: [0.2, 0.2, 0.15] },
+      lowerSpine: { position: [0, -0.45, 0], size: [0.25, 0.25, 0.15] },
+      pelvis: { position: [0, -0.7, 0], size: [0.35, 0.15, 0.2] },
+      // Arms
+      leftUpperArm: { position: [-0.25, -0.2, 0], size: [0.1, 0.4, 0.1] },
+      rightUpperArm: { position: [0.25, -0.2, 0], size: [0.1, 0.4, 0.1] },
+      leftLowerArm: { position: [-0.25, -0.65, 0], size: [0.08, 0.4, 0.08] },
+      rightLowerArm: { position: [0.25, -0.65, 0], size: [0.08, 0.4, 0.08] },
+      leftHand: { position: [-0.25, -0.95, 0], size: [0.15, 0.1, 0.2] },
+      rightHand: { position: [0.25, -0.95, 0], size: [0.15, 0.1, 0.2] },
+      // Legs
+      leftUpperLeg: { position: [-0.1, -0.85, 0], size: [0.15, 0.5, 0.15] },
+      rightUpperLeg: { position: [0.1, -0.85, 0], size: [0.15, 0.5, 0.15] },
+      leftLowerLeg: { position: [-0.1, -1.4, 0], size: [0.12, 0.5, 0.12] },
+      rightLowerLeg: { position: [0.1, -1.4, 0], size: [0.12, 0.5, 0.12] },
+      leftFoot: { position: [-0.1, -1.7, 0.1], size: [0.2, 0.1, 0.3] },
+      rightFoot: { position: [0.1, -1.7, 0.1], size: [0.2, 0.1, 0.3] }
+    };
+
+    // Create each bone
+    Object.entries(bones).forEach(([name, data]) => {
+      const geometry = new THREE.BoxGeometry(...data.size);
+      const bone = new THREE.Mesh(geometry, boneMaterial);
+      bone.position.set(...data.position);
+      bone.castShadow = true;
+      bone.receiveShadow = true;
+      bone.name = name;
+      group.add(bone);
+
+      // Create HTML highlight element
+      const highlight = document.createElement('div');
+      highlight.className = 'highlight';
+      highlight.id = `highlight-${name}`;
+      document.getElementById('container').appendChild(highlight);
+      boneHighlights[name] = highlight;
+    });
+
+    // Create muscles (simplified as cylinders between bones)
+    const createMuscle = (start, end, thickness, name) => {
+      const startVec = new THREE.Vector3(...start);
+      const endVec = new THREE.Vector3(...end);
+      const length = startVec.distanceTo(endVec);
+      const direction = new THREE.Vector3().subVectors(endVec, startVec).normalize();
+
+      const geometry = new THREE.CylinderGeometry(thickness/2, thickness/2, length, 8);
+      const muscle = new THREE.Mesh(geometry, muscleMaterial);
+
+      // Position and orient the cylinder
+      muscle.position.addVectors(startVec, direction.clone().multiplyScalar(length/2));
+      muscle.quaternion.setFromUnitVectors(
+              new THREE.Vector3(0, 1, 0),
+              direction
+      );
+
+      muscle.name = name;
+      group.add(muscle);
+
+      // Create muscle highlight
+      const highlight = document.createElement('div');
+      highlight.className = 'muscle-highlight';
+      highlight.id = `highlight-muscle-${name}`;
+      document.getElementById('container').appendChild(highlight);
+      muscleHighlights[name] = highlight;
+
+      return muscle;
+    };
+
+    // Major muscle groups (simplified)
+    createMuscle([0, -0.2, 0], [-0.25, -0.2, 0], 0.08, "leftTrapezius");
+    createMuscle([0, -0.2, 0], [0.25, -0.2, 0], 0.08, "rightTrapezius");
+    createMuscle([0, -0.45, 0], [-0.25, -0.2, 0], 0.07, "leftLatissimus");
+    createMuscle([0, -0.45, 0], [0.25, -0.2, 0], 0.07, "rightLatissimus");
+    createMuscle([-0.25, -0.2, 0], [-0.25, -0.65, 0], 0.06, "leftBiceps");
+    createMuscle([0.25, -0.2, 0], [0.25, -0.65, 0], 0.06, "rightBiceps");
+    createMuscle([0, -0.7, 0], [-0.1, -0.85, 0], 0.1, "leftQuadriceps");
+    createMuscle([0, -0.7, 0], [0.1, -0.85, 0], 0.1, "rightQuadriceps");
+    createMuscle([-0.1, -0.85, 0], [-0.1, -1.4, 0], 0.08, "leftHamstring");
+    createMuscle([0.1, -0.85, 0], [0.1, -1.4, 0], 0.08, "rightHamstring");
+    createMuscle([0, -0.2, 0], [0, -0.45, 0], 0.1, "erectorSpinae");
+
+    // Joints (spheres connecting bones)
+    const joints = [
+      // Head/neck
+      { position: [0, 0.125, 0], size: 0.1, name: 'neckJoint' },
+      // Shoulders
+      { position: [-0.25, -0.2, 0], size: 0.12, name: 'leftShoulder' },
+      { position: [0.25, -0.2, 0], size: 0.12, name: 'rightShoulder' },
+      // Elbows
+      { position: [-0.25, -0.65, 0], size: 0.1, name: 'leftElbow' },
+      { position: [0.25, -0.65, 0], size: 0.1, name: 'rightElbow' },
+      // Wrists
+      { position: [-0.25, -0.95, 0], size: 0.08, name: 'leftWrist' },
+      { position: [0.25, -0.95, 0], size: 0.08, name: 'rightWrist' },
+      // Hips
+      { position: [-0.1, -0.7, 0], size: 0.12, name: 'leftHip' },
+      { position: [0.1, -0.7, 0], size: 0.12, name: 'rightHip' },
+      // Knees
+      { position: [-0.1, -1.4, 0], size: 0.1, name: 'leftKnee' },
+      { position: [0.1, -1.4, 0], size: 0.1, name: 'rightKnee' },
+      // Ankles
+      { position: [-0.1, -1.7, 0], size: 0.08, name: 'leftAnkle' },
+      { position: [0.1, -1.7, 0], size: 0.08, name: 'rightAnkle' }
+    ];
+
+    joints.forEach(joint => {
+      const geometry = new THREE.SphereGeometry(joint.size, 16, 16);
+      const jointMesh = new THREE.Mesh(geometry, jointMaterial);
+      jointMesh.position.set(...joint.position);
+      jointMesh.name = joint.name;
+      group.add(jointMesh);
+
+      // Add highlights for major joints
+      if (['leftShoulder', 'rightShoulder', 'leftHip', 'rightHip', 'leftKnee', 'rightKnee'].includes(joint.name)) {
+        const highlight = document.createElement('div');
+        highlight.className = 'highlight';
+        highlight.id = `highlight-${joint.name}`;
+        document.getElementById('container').appendChild(highlight);
+        boneHighlights[joint.name] = highlight;
+      }
+    });
+
+    return group;
+  }
+
+  // Create weight box with more realistic appearance
+  function createBox(weight) {
+    const group = new THREE.Group();
+
+    // Main box
+    const geometry = new THREE.BoxGeometry(0.6, 0.4, 0.6);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x8B4513,
+      roughness: 0.8,
+      metalness: 0.2
+    });
+    const box = new THREE.Mesh(geometry, material);
+    box.castShadow = true;
+    box.receiveShadow = true;
+    group.add(box);
+
+    // Add some details to make it look like a crate
+    const edgeGeometry = new THREE.BoxGeometry(0.6, 0.02, 0.02);
+    const edgeMaterial = new THREE.MeshStandardMaterial({ color: 0x5D2906 });
+
+    // Vertical edges
+    for (let x of [-0.3, 0.3]) {
+      for (let z of [-0.3, 0.3]) {
+        const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+        edge.position.set(x, 0, z);
+        edge.scale.y = 2.5; // Make vertical edges taller
+        group.add(edge);
+      }
+    }
+
+    // Horizontal edges
+    const horizEdgeGeometry = new THREE.BoxGeometry(0.02, 0.02, 0.6);
+    for (let y of [-0.2, 0, 0.2]) {
+      for (let x of [-0.3, 0.3]) {
+        const edge = new THREE.Mesh(horizEdgeGeometry, edgeMaterial);
+        edge.position.set(x, y, 0);
+        group.add(edge);
+      }
+      for (let z of [-0.3, 0.3]) {
+        const edge = new THREE.Mesh(horizEdgeGeometry, edgeMaterial);
+        edge.position.set(0, y, z);
+        edge.rotation.y = Math.PI/2;
+        group.add(edge);
+      }
+    }
+
+    // Weight label
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    context.fillStyle = 'brown';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.font = 'Bold 40px Arial';
+    context.fillStyle = 'white';
+    context.textAlign = 'center';
+    context.fillText(`${weight}kg`, canvas.width/2, canvas.height/2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const labelMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+    const label = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.5, 0.25),
+            labelMaterial
+    );
+    label.position.set(0, 0.21, 0.31);
+    label.rotation.x = -Math.PI / 2;
+    group.add(label);
+
+    return group;
+  }
+
+  // Update skeleton posture based on controls
+  function updatePosture() {
+    if (!skeleton) return;
+
+    // Convert angles to radians
+    const backAngleRad = THREE.MathUtils.degToRad(backAngle);
+    const kneeBendRad = THREE.MathUtils.degToRad(kneeBend);
+
+    // Calculate height adjustment based on knee bend
+    const heightAdjustment = Math.cos(kneeBendRad) * 0.3;
+
+    // Update skeleton position and rotation
+    skeleton.position.y = 1.0 - (1.0 - Math.cos(backAngleRad)) * 0.2 - heightAdjustment;
+    skeleton.rotation.x = backAngleRad;
+
+    // Update legs based on knee bend
+    const leftUpperLeg = skeleton.getObjectByName('leftUpperLeg');
+    const rightUpperLeg = skeleton.getObjectByName('rightUpperLeg');
+    const leftLowerLeg = skeleton.getObjectByName('leftLowerLeg');
+    const rightLowerLeg = skeleton.getObjectByName('rightLowerLeg');
+    const leftFoot = skeleton.getObjectByName('leftFoot');
+    const rightFoot = skeleton.getObjectByName('rightFoot');
+
+    if (leftUpperLeg && leftLowerLeg && leftFoot) {
+      leftUpperLeg.rotation.z = kneeBendRad;
+      leftLowerLeg.rotation.z = -kneeBendRad * 0.8;
+      leftLowerLeg.position.y = -0.5 + Math.sin(kneeBendRad) * 0.5;
+      leftFoot.position.y = -0.3 + Math.sin(kneeBendRad) * 0.5;
+    }
+
+    if (rightUpperLeg && rightLowerLeg && rightFoot) {
+      rightUpperLeg.rotation.z = kneeBendRad;
+      rightLowerLeg.rotation.z = -kneeBendRad * 0.8;
+      rightLowerLeg.position.y = -0.5 + Math.sin(kneeBendRad) * 0.5;
+      rightFoot.position.y = -0.3 + Math.sin(kneeBendRad) * 0.5;
+    }
+
+    // Update arms based on lift progress and grip width
+    const leftUpperArm = skeleton.getObjectByName('leftUpperArm');
+    const rightUpperArm = skeleton.getObjectByName('rightUpperArm');
+    const leftLowerArm = skeleton.getObjectByName('leftLowerArm');
+    const rightLowerArm = skeleton.getObjectByName('rightLowerArm');
+    const leftHand = skeleton.getObjectByName('leftHand');
+    const rightHand = skeleton.getObjectByName('rightHand');
+
+    if (leftUpperArm && leftLowerArm && leftHand) {
+      const armAngle = liftProgress * Math.PI * 0.8;
+      leftUpperArm.rotation.z = -armAngle;
+      leftLowerArm.rotation.z = -armAngle * 0.5;
+
+      // Position hands to hold the box with adjustable grip width
+      if (box) {
+        const handPos = new THREE.Vector3();
+        box.getWorldPosition(handPos);
+        handPos.y -= 0.2; // Adjust to hold the bottom of the box
+        handPos.x = -gripWidth/2; // Left hand position based on grip width
+
+        // Convert hand position to local skeleton space
+        skeleton.worldToLocal(handPos);
+        leftHand.position.x = handPos.x;
+        leftHand.position.y = handPos.y;
+        leftHand.position.z = handPos.z;
+      }
+    }
+
+    if (rightUpperArm && rightLowerArm && rightHand) {
+      const armAngle = liftProgress * Math.PI * 0.8;
+      rightUpperArm.rotation.z = armAngle;
+      rightLowerArm.rotation.z = armAngle * 0.5;
+
+      // Position right hand
+      if (box) {
+        const handPos = new THREE.Vector3();
+        box.getWorldPosition(handPos);
+        handPos.y -= 0.2;
+        handPos.x = gripWidth/2; // Right hand position based on grip width
+        skeleton.worldToLocal(handPos);
+        rightHand.position.x = handPos.x;
+        rightHand.position.y = handPos.y;
+        rightHand.position.z = handPos.z;
+      }
+    }
+
+    // Update box position based on lift progress
+    if (box) {
+      const targetY = liftPhase === 0 ? 0.3 : liftHeight;
+      box.position.y = 0.3 + (liftHeight - 0.3) * liftProgress;
+    }
+  }
+
+  // Update bone highlights and stress visualization
+  function updateHighlights() {
+    if (!skeleton) return;
+
+    // Calculate stress factors
+    const backStressFactor = 1 + Math.abs(backAngle) / 30; // More angle = more stress
+    const kneeStressFactor = 1 + kneeBend / 45; // More bend = more stress
+    const weightFactor = currentWeight / 15; // Normalized to 15kg baseline
+    const gripFactor = 1 + (Math.abs(gripWidth - 0.5) / 0.2); // Wider or narrower grip increases stress
+
+    let backStress = 0, kneeStress = 0, shoulderStress = 0, spineStress = 0, handStress = 0;
+    let dangerDetected = false;
+
+    if (isLifting) {
+      // Calculate stress values with posture factors
+      backStress = Math.min(100, 30 * weightFactor * backStressFactor * (1 + liftProgress));
+      kneeStress = Math.min(100, 20 * weightFactor * kneeStressFactor * (1 + liftProgress));
+      shoulderStress = Math.min(100, 25 * weightFactor * gripFactor * (1 + liftProgress));
+      spineStress = Math.min(100, 35 * weightFactor * backStressFactor * (1 + liftProgress));
+      handStress = Math.min(100, 15 * weightFactor * gripFactor * (1 + liftProgress));
+
+      // Check for dangerous conditions
+      if (backStress > 80 || spineStress > 85 || currentWeight > 25 || (backAngle > 45 && currentWeight > 15)) {
+        dangerDetected = true;
+      }
+
+      // Increase fatigue based on weight and posture
+      fatigueLevel = Math.min(100, fatigueLevel + (0.05 * weightFactor * (backStressFactor + kneeStressFactor) / 2));
+      document.getElementById('fatigueLevel').style.width = `${fatigueLevel}%`;
+    }
+
+    // Update stress bars
+    document.getElementById('backStress').style.width = `${backStress}%`;
+    document.getElementById('kneeStress').style.width = `${kneeStress}%`;
+    document.getElementById('shoulderStress').style.width = `${shoulderStress}%`;
+    document.getElementById('spineStress').style.width = `${spineStress}%`;
+    document.getElementById('handStress').style.width = `${handStress}%`;
+
+    // Update numeric values
+    document.querySelectorAll('.stress-value').forEach(el => el.textContent = '0%');
+    document.querySelectorAll('.bone-analysis').forEach((el, i) => {
+      const values = [backStress, kneeStress, shoulderStress, spineStress, handStress];
+      el.querySelector('.stress-value').textContent = `${Math.round(values[i])}%`;
+    });
+
+    // Show danger alert if needed
+    if (dangerDetected) {
+      document.getElementById('dangerAlert').style.display = 'block';
+      document.getElementById('injuryIndicator').style.display = 'block';
+      document.getElementById('injuryIndicator').style.backgroundColor = 'red';
+
+      if (dangerAlertTimeout) clearTimeout(dangerAlertTimeout);
+      dangerAlertTimeout = setTimeout(() => {
+        document.getElementById('dangerAlert').style.display = 'none';
+      }, 3000);
+
+      // Chance of injury increases with stress level
+      if ((backStress > 90 || spineStress > 95) && Math.random() < 0.01) {
+        injuryOccurred = true;
+        document.getElementById('feedbackText').textContent = "INJURY! You've strained your back from improper lifting!";
+        document.getElementById('injuryIndicator').style.backgroundColor = 'red';
+        document.getElementById('startLift').disabled = true;
+      }
+    } else {
+      document.getElementById('injuryIndicator').style.backgroundColor = '#4CAF50';
+    }
+
+    // Highlight stressed bones
+    highlightBone('lowerSpine', spineStress);
+    highlightBone('leftUpperLeg', kneeStress);
+    highlightBone('rightUpperLeg', kneeStress);
+    highlightBone('leftLowerArm', shoulderStress);
+    highlightBone('rightLowerArm', shoulderStress);
+    highlightBone('leftHand', handStress);
+    highlightBone('rightHand', handStress);
+
+    // Highlight stressed muscles
+    highlightMuscle('leftLatissimus', backStress);
+    highlightMuscle('rightLatissimus', backStress);
+    highlightMuscle('erectorSpinae', spineStress);
+    highlightMuscle('leftQuadriceps', kneeStress);
+    highlightMuscle('rightQuadriceps', kneeStress);
+    highlightMuscle('leftBiceps', shoulderStress);
+    highlightMuscle('rightBiceps', shoulderStress);
+  }
+
+  function highlightBone(boneName, stressLevel) {
+    const bone = skeleton.getObjectByName(boneName);
+    if (!bone) return;
+
+    const highlight = boneHighlights[boneName];
+    if (!highlight) return;
+
+    // Convert bone position to screen coordinates
+    const position = new THREE.Vector3();
+    bone.getWorldPosition(position);
+    position.project(camera);
+
+    const x = (position.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-(position.y * 0.5) + 0.5) * window.innerHeight;
+
+    highlight.style.left = `${x}px`;
+    highlight.style.top = `${y}px`;
+
+    // Size and opacity based on stress level
+    if (stressLevel > 30) {
+      const size = 20 + (stressLevel * 0.8);
+      highlight.style.width = `${size}px`;
+      highlight.style.height = `${size}px`;
+      highlight.style.opacity = (stressLevel / 100) * 0.8;
+    } else {
+      highlight.style.opacity = 0;
+    }
+  }
+
+  function highlightMuscle(muscleName, stressLevel) {
+    const muscle = skeleton.getObjectByName(muscleName);
+    if (!muscle) return;
+
+    const highlight = muscleHighlights[muscleName];
+    if (!highlight) return;
+
+    // Get midpoint of muscle for highlight position
+    const position = new THREE.Vector3();
+    muscle.getWorldPosition(position);
+    position.project(camera);
+
+    const x = (position.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-(position.y * 0.5) + 0.5) * window.innerHeight;
+
+    highlight.style.left = `${x}px`;
+    highlight.style.top = `${y}px`;
+
+    // Size and opacity based on stress level
+    if (stressLevel > 40 && xrayMode) {
+      const size = 30 + (stressLevel * 0.5);
+      highlight.style.width = `${size}px`;
+      highlight.style.height = `${size}px`;
+      highlight.style.opacity = (stressLevel / 120) * 0.6;
+    } else {
+      highlight.style.opacity = 0;
+    }
+  }
+
+  // Animate lifting motion
+  function animateLift() {
+    if (!isLifting) return;
+
+    const liftSpeed = 0.005 * (30 / currentWeight); // Heavier objects lift slower
+
+    if (liftPhase === 0) { // Lifting up
+      liftProgress += liftSpeed;
+      if (liftProgress >= 1) {
+        liftProgress = 1;
+        if (!autoLiftMode) {
+          isLifting = false;
+          document.getElementById('startLift').textContent = "Lower Object";
+        } else {
+          // Auto mode - pause at top then lower
+          setTimeout(() => {
+            liftPhase = 1;
+          }, 1000);
+        }
+      }
+    } else { // Lowering down
+      liftProgress -= liftSpeed;
+      if (liftProgress <= 0) {
+        liftProgress = 0;
+        if (!autoLiftMode) {
+          isLifting = false;
+          document.getElementById('startLift').textContent = "Lift Object";
+        } else {
+          // Auto mode - pause at bottom then lift again
+          setTimeout(() => {
+            liftPhase = 0;
+          }, 1000);
+        }
+      }
+    }
+
+    updatePosture();
+    updateHighlights();
+  }
+
+  // Toggle X-ray mode
+  function toggleXray() {
+    xrayMode = !xrayMode;
+
+    // Change materials to show bones/muscles more clearly
+    skeleton.traverse(child => {
+      if (child.isMesh) {
+        if (xrayMode) {
+          if (child.name.includes('bone') || child.name.includes('Bone')) {
+            child.material.opacity = 0.9;
+            child.material.transparent = true;
+          } else if (child.name.includes('muscle') || child.name.includes('Muscle')) {
+            child.material.opacity = 0.7;
+            child.material.transparent = true;
+          }
+        } else {
+          child.material.opacity = 1.0;
+          child.material.transparent = false;
+        }
+      }
+    });
+
+    document.getElementById('toggleXray').textContent = xrayMode ? "Normal View" : "X-Ray View";
+  }
+
+  // Set up proper lifting form automatically
+  function setProperLiftForm() {
+    backAngle = 0;
+    kneeBend = 45;
+    gripWidth = 0.5;
+
+    document.getElementById('backAngleSlider').value = backAngle;
+    document.getElementById('kneeBendSlider').value = kneeBend;
+    document.getElementById('gripWidthSlider').value = gripWidth;
+
+    document.getElementById('backAngleValue').textContent = backAngle;
+    document.getElementById('kneeBendValue').textContent = kneeBend;
+    document.getElementById('gripWidthValue').textContent = gripWidth;
+
+    updatePosture();
+    updateHighlights();
+
+    document.getElementById('feedbackText').textContent = "Proper lifting form: knees bent, back straight, grip shoulder-width";
+  }
+
+  // Initialize test panel
+  function showTestQuestion(index) {
+    const question = testQuestions[index];
+    document.getElementById('testQuestion').textContent = question.question;
+    document.getElementById('testProgress').textContent = `Question ${index + 1} of ${testQuestions.length}`;
+
+    const optionsContainer = document.getElementById('testOptions');
+    optionsContainer.innerHTML = '';
+
+    question.options.forEach((option, i) => {
+      const button = document.createElement('button');
+      button.className = 'test-option';
+      button.textContent = option;
+      button.onclick = () => checkAnswer(i);
+      optionsContainer.appendChild(button);
+    });
+
+    document.getElementById('nextQuestion').style.display = 'none';
+    document.getElementById('testResult').textContent = '';
+  }
+
+  function checkAnswer(selectedIndex) {
+    const question = testQuestions[currentTestQuestion];
+    const options = document.querySelectorAll('.test-option');
+
+    options.forEach((option, i) => {
+      option.disabled = true;
+      if (i === question.correct) {
+        option.classList.add('correct');
+      } else if (i === selectedIndex && i !== question.correct) {
+        option.classList.add('incorrect');
+      }
+    });
+
+    if (selectedIndex === question.correct) {
+      testScore++;
+      document.getElementById('testResult').textContent = question.feedback;
+    } else {
+      document.getElementById('testResult').textContent = `Incorrect. ${question.feedback}`;
+    }
+
+    document.getElementById('nextQuestion').style.display = 'block';
+  }
+
+  function nextQuestion() {
+    currentTestQuestion++;
+    if (currentTestQuestion < testQuestions.length) {
+      showTestQuestion(currentTestQuestion);
+    } else {
+      // Test completed
+      const scorePercentage = Math.round((testScore / testQuestions.length) * 100);
+      document.getElementById('testScore').textContent = `Score: ${scorePercentage}%`;
+      document.getElementById('testPanel').style.display = 'none';
+      document.getElementById('completionBadge').style.display = 'block';
+
+      setTimeout(() => {
+        document.getElementById('completionBadge').style.display = 'none';
+      }, 3000);
+
+      // Reset test for next time
+      currentTestQuestion = 0;
+      testScore = 0;
+    }
+  }
+
+  // Initialize simulation
+  function init() {
+    skeleton = createSkeleton();
+    scene.add(skeleton);
+
+    box = createBox(currentWeight);
+    box.position.y = 0.3;
+    scene.add(box);
+
+    // Event listeners for controls
+    document.getElementById('startLift').addEventListener('click', () => {
+      if (injuryOccurred) return;
+
+      isLifting = true;
+      if (liftPhase === 0 && liftProgress === 0) {
+        // Starting new lift
+        fatigueLevel = Math.min(100, fatigueLevel + 5);
+        document.getElementById('fatigueLevel').style.width = `${fatigueLevel}%`;
+      }
+      document.getElementById('startLift').disabled = true;
+    });
+
+    document.getElementById('resetSim').addEventListener('click', () => {
+      isLifting = false;
+      liftPhase = 0;
+      liftProgress = 0;
+      injuryOccurred = false;
+      fatigueLevel = 0;
+      document.getElementById('fatigueLevel').style.width = '0%';
+      document.getElementById('startLift').disabled = false;
+      document.getElementById('startLift').textContent = "Lift Object";
+      document.getElementById('feedbackText').textContent = "Adjust posture and weight to see effects on the body";
+      document.getElementById('injuryIndicator').style.display = 'none';
+      updatePosture();
+      updateHighlights();
+    });
+
+    document.getElementById('toggleView').addEventListener('click', () => {
+      activeCamera = activeCamera === camera ? sideCamera : camera;
+    });
+
+    document.getElementById('toggleXray').addEventListener('click', toggleXray);
+
+    document.getElementById('autoLiftBtn').addEventListener('click', () => {
+      autoLiftMode = !autoLiftMode;
+      if (autoLiftMode) {
+        setProperLiftForm();
+        isLifting = true;
+        liftPhase = 0;
+        document.getElementById('autoLiftBtn').textContent = "Stop Auto Lift";
+        document.getElementById('startLift').disabled = true;
+      } else {
+        isLifting = false;
+        document.getElementById('autoLiftBtn').textContent = "Auto Lift (Proper Form)";
+        document.getElementById('startLift').disabled = false;
+      }
+    });
+
+    document.getElementById('showTest').addEventListener('click', () => {
+      document.getElementById('testPanel').style.display = 'block';
+      showTestQuestion(0);
+    });
+
+    document.getElementById('nextQuestion').addEventListener('click', nextQuestion);
+
+    // Slider controls
+    document.getElementById('weightSlider').addEventListener('input', (e) => {
+      currentWeight = parseInt(e.target.value);
+      document.getElementById('weightValue').textContent = currentWeight;
+
+      // Update box appearance with new weight
+      if (box) scene.remove(box);
+      box = createBox(currentWeight);
+      box.position.y = 0.3 + (liftHeight - 0.3) * liftProgress;
+      scene.add(box);
+
+      updateHighlights();
+    });
+
+    document.getElementById('backAngleSlider').addEventListener('input', (e) => {
+      backAngle = parseInt(e.target.value);
+      document.getElementById('backAngleValue').textContent = backAngle;
+      updatePosture();
+      updateHighlights();
+    });
+
+    document.getElementById('kneeBendSlider').addEventListener('input', (e) => {
+      kneeBend = parseInt(e.target.value);
+      document.getElementById('kneeBendValue').textContent = kneeBend;
+      updatePosture();
+      updateHighlights();
+    });
+
+    document.getElementById('gripWidthSlider').addEventListener('input', (e) => {
+      gripWidth = parseFloat(e.target.value);
+      document.getElementById('gripWidthValue').textContent = gripWidth;
+      updatePosture();
+      updateHighlights();
+    });
+
+    document.getElementById('liftHeightSlider').addEventListener('input', (e) => {
+      liftHeight = parseFloat(e.target.value);
+      document.getElementById('liftHeightValue').textContent = liftHeight;
+      updatePosture();
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      sideCamera.aspect = window.innerWidth / window.innerHeight;
+      sideCamera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start animation loop
+    animate();
+  }
+
+  // بعد تعريف camera و renderer
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  // إعدادات التحكم (اختيارية)
+  controls.enableDamping = true; // يجعل الحركة أكثر سلاسة
+  controls.dampingFactor = 0.05;
+  controls.screenSpacePanning = false;
+  controls.minDistance = 1; // أقل مسافة للتكبير
+  controls.maxDistance = 10; // أكبر مسافة للتصغير
+  controls.maxPolarAngle = Math.PI; // أقصى زاوية للدوران الرأسي
+
+  // في دورة التحريك (animate) أضف:
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update(); // مطلوب إذا كان enableDamping فعالاً
+    renderer.render(scene, camera);
+  }
+
+  // Animation loop
+  function animate() {
+    requestAnimationFrame(animate);
+
+    animateLift();
+    updateHighlights();
+
+    renderer.render(scene, activeCamera);
+  }
+
+  // Start the simulation
+  init();
+</script>
+</body>
+</html>
