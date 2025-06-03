@@ -73,6 +73,9 @@ We used **Blender** to create and animate a 3D skeletal model for visualizing jo
 This helped prototype the biomechanics behind joint torques and inspired the simulation's logic and layout.
 
 🔗 **Watch Blender Animation Video Here:**  
+[![Watch the Blender Animation Video](https://github.com/user-attachments/assets/75c57e04-6300-4ed4-b24b-efa3f3f35f3a)](https://github.com/user-attachments/assets/832145e0-e574-4a65-b595-9680527e884d)
+
+
 https://github.com/user-attachments/assets/832145e0-e574-4a65-b595-9680527e884d
 
 
