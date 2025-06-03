@@ -84,6 +84,8 @@ https://github.com/user-attachments/assets/832145e0-e574-4a65-b595-9680527e884d
 Want to see it in action? Watch our live walkthrough of the platform and how users interact with the simulations, dashboard, and quiz.
 
 🔗 **Watch Web Demo Video Here:**  
+[![Watch the Web App Demo Video](https://github.com/user-attachments/assets/75c57e04-6300-4ed4-b24b-efa3f3f35f3a)](https://github.com/user-attachments/assets/4d7ed30b-4e4c-4362-9e65-e3418ae9823c)
+
 [> _[Insert Web App demo video link here]_
 ](https://github.com/user-attachments/assets/4d7ed30b-4e4c-4362-9e65-e3418ae9823c
 )
